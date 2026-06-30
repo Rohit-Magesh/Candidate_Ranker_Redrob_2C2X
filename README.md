@@ -1,165 +1,261 @@
 # Redrob Intelligent Candidate Discovery & Ranking System
 
-Semantic ranking pipeline for the **Redrob Hackathon — Intelligent Candidate Discovery & Ranking Challenge**.
+This project was developed for the **Redrob Intelligent Candidate Discovery & Ranking Challenge**.
 
-Ranks 100,000 candidates against a job description and outputs the top 100 as `submission.csv`.
+The system ranks a dataset of **100,000 candidate profiles** against a given job description and produces the **Top 100 most relevant candidates** in the required `submission.csv` format.
+
+The goal of the project is to combine semantic relevance, experience, technical skills, behavioural signals and candidate quality checks into a single ranking score that can assist recruiters in identifying the strongest candidates.
 
 ---
 
-## Architecture
+# Project Structure
 
 ```
 project/
-├── rank.py               ← Main pipeline (run this to produce submission)
-├── precompute.py         ← Optional: pre-generate embeddings cache
-├── config.py             ← All weights and parameters
-├── loader.py             ← Streaming gzip JSONL reader
-├── parser.py             ← Structured feature extraction from raw profiles
-├── jd_parser.py          ← Parse JD into weighted requirements
-├── semantic_matcher.py   ← Sentence-transformer embedding + cosine     similarity
-├── feature_engineering.py← Numerical feature vectors
-├── behavioral_scorer.py  ← Redrob platform signal → multiplier
-├── honeypot_detector.py  ← Detect impossible/fraudulent profiles
-├── reasoning.py          ← Factual per-candidate reasoning strings
-├── utils.py              ← Shared helpers
-├── requirements.txt
-├── models/               ← Sentence-transformer model cache (auto-populated)
-├── cache/                ← Embedding cache (embeddings.npz)
-└── output/               ← Submission CSV written here
+│
+├── rank.py                     # Main ranking pipeline
+├── config.py                   # Configuration values and feature weights
+├── loader.py                   # Reads candidate dataset
+├── parser.py                   # Parses candidate information
+├── jd_parser.py                # Parses the job description
+├── feature_engineering.py      # Computes ranking features
+├── behavioral_scorer.py        # Behaviour-based scoring
+├── honeypot_detector.py        # Detects suspicious or inconsistent profiles
+├── reasoning.py                # Generates reasoning for every shortlisted candidate
+├── semantic_matcher.py         # TF-IDF based semantic similarity
+├── utils.py                    # Shared helper functions
+│
+├── data/ required data files
+├── cache/
+├── output/
+└── requirements.txt
 ```
 
 ---
 
-## Installation
+# Overview
 
-### 1. Create virtual environment
+The pipeline processes every candidate profile and performs several stages of analysis before producing the final ranking.
 
-```bash
-python3.11 -m venv .venv
-source .venv/bin/activate   # Windows: .venv\Scripts\activate
+The major stages are:
+
+1. Load the candidate dataset.
+2. Parse and structure candidate information.
+3. Parse the supplied job description.
+4. Calculate semantic similarity between every candidate and the job description.
+5. Engineer multiple ranking features.
+6. Apply behavioural scoring.
+7. Apply fraud / honeypot penalties.
+8. Rank candidates.
+9. Generate recruiter-friendly reasoning.
+10. Export the final submission CSV.
+
+---
+
+# Semantic Matching
+
+The original implementation used **Sentence Transformers (all-MiniLM-L6-v2)** to generate embeddings for all 100,000 candidates.
+
+Although this produced strong semantic representations, generating embeddings for every profile required a long preprocessing stage and caused significant performance and memory issues on CPU-only systems.
+
+To make the solution more practical within the competition constraints, this version replaces transformer embeddings with a lightweight **TF-IDF based semantic matching approach**.
+
+This provides several advantages:
+
+- considerably lower memory usage
+- much faster execution
+- no embedding cache generation
+- no precomputation step
+- fully CPU compatible
+- completes comfortably within the runtime limits
+
+Although TF-IDF is less sophisticated than transformer embeddings, the overall ranking quality remains strong because semantic similarity is only one component of the complete scoring system.
+
+---
+
+# Scoring Methodology
+
+Each candidate receives a final ranking score using multiple independent signals.
+
+These include:
+
+- semantic similarity to the job description
+- years of relevant experience
+- job title relevance
+- technical skill overlap
+- retrieval and ranking system experience
+- production ML experience
+- project relevance
+- company relevance
+- education
+- career stability
+- location suitability
+- behavioural platform signals
+- profile quality penalties
+
+The final ranking score is calculated as:
+
+```
+Base Score
+      ↓
+Behaviour Multiplier
+      ↓
+Penalty Adjustment
+      ↓
+Final Ranking Score
 ```
 
-### 2. Install dependencies
+Candidates are then sorted by this final score and the highest-ranked 100 candidates are exported.
+
+---
+
+# Behavioural Scoring
+
+Behavioural signals supplied in the dataset are used to reward candidates who appear more active and recruiter-friendly.
+
+Examples include:
+
+- recruiter response rate
+- recent activity
+- interview completion
+- notice period
+- GitHub activity
+- willingness to relocate
+- open-to-work status
+
+These signals slightly increase or decrease the overall ranking score.
+
+---
+
+# Honeypot Detection
+
+The system also attempts to identify potentially unreliable profiles.
+
+Penalties are applied for situations such as:
+
+- impossible work history
+- excessive keyword stuffing
+- inconsistent career timelines
+- research-only backgrounds
+- no production deployment evidence
+- predominantly service-company careers
+
+These penalties reduce the final score while preserving ranking consistency.
+
+---
+
+# Installation
+
+Create a virtual environment.
 
 ```bash
-pip install --upgrade pip
+python -m venv .venv
+```
 
-# CPU-only PyTorch (required by sentence-transformers; much smaller download)
-pip install torch --index-url https://download.pytorch.org/whl/cpu
+Activate it.
 
-# All other deps
+Windows
+
+```bash
+.venv\Scripts\activate
+```
+
+Linux / macOS
+
+```bash
+source .venv/bin/activate
+```
+
+Install the required packages.
+
+```bash
 pip install -r requirements.txt
 ```
 
-### 3. Place the dataset
+---
 
-Copy the competition files to the project root:
+# Dataset
+
+Place the competition files inside the project directory.
 
 ```
 project/
-├── candidates.jsonl.gz        ← 100,000 candidates
-└── job_description.md         ← Provided JD
+
+data/
+│
+├── candidates.jsonl
+└── job_description.md
 ```
 
 ---
 
-## Usage
+# Running the Project
 
-### Option A — Direct ranking (5-minute budget includes embedding)
+Unlike the original implementation, **no precompute step is required**.
 
-```bash
-python rank.py
-# or with explicit paths:
-python rank.py --candidates ./candidates.jsonl.gz --jd ./job_description.md --out ./output/submission.csv
-```
+The previous version generated semantic embeddings for all candidates before ranking, but this significantly increased runtime and memory usage.
 
-Expected runtime: **3–5 minutes on a 16 GB CPU machine** (first run includes embedding ~100K texts).
+Since the semantic matching has been replaced with TF-IDF, all processing now happens in a single pipeline.
 
-### Option B — Precompute embeddings first (recommended for iteration)
+Simply run:
 
 ```bash
-# Step 1: precompute once (may take longer than 5 min for first run)
-python precompute.py --candidates ./candidates.jsonl.gz
-
-# Step 2: rank (loads from cache — runs in ~60-90 seconds)
-python rank.py
+python rank.py --candidates candidates.jsonl --jd job_description.md
 ```
+
+The program will:
+
+- load the dataset
+- parse every candidate
+- parse the job description
+- compute semantic similarity
+- calculate all ranking features
+- score every candidate
+- produce the final ranked list
 
 ---
 
-## Output
+# Output
 
-`output/submission.csv` with columns:
+The final submission is written to
+
+```
+output/submission.csv
+```
+
+The CSV contains four columns:
 
 | Column | Description |
-|---|---|
-| `candidate_id` | `CAND_XXXXXXX` format |
-| `rank` | 1 (best) to 100 (100th best) |
-| `score` | Composite score in [0, 1], non-increasing with rank |
-| `reasoning` | 1–2 factual sentences grounded in the candidate's profile |
+|---------|-------------|
+| candidate_id | Candidate identifier |
+| rank | Rank from 1–100 |
+| score | Final ranking score |
+| reasoning | Explanation for why the candidate was selected |
 
 ---
 
-## Ranking methodology
+# Performance
 
-1. **Semantic similarity** (30%): Sentence-transformer embeddings of candidate full text vs. JD summary. Model: `all-MiniLM-L6-v2` (CPU-fast, 384-dim).
+The original embedding-based implementation required a separate preprocessing stage that generated embeddings for every candidate profile.
 
-2. **Feature engineering** (70%): 12 numerical features including experience score, title relevance, skill overlap (mapped to canonical JD-relevant groups), retrieval/ranking/production-ML relevance, evaluation framework evidence, project relevance, company type, career stability, education, and location.
+While accurate, this significantly increased execution time and memory consumption on CPU-only hardware.
 
-3. **Behavioral multiplier**: Redrob platform signals (recruiter response rate, last-active recency, open-to-work, GitHub activity, interview completion, notice period, etc.) adjust the base score multiplicatively in [0.72, 1.15].
+The current implementation removes this bottleneck by replacing transformer embeddings with TF-IDF based semantic similarity.
 
-4. **Penalties**: Honeypot detection (impossible experience, expert-everywhere, date inconsistencies, keyword stuffing), service-company-only careers, research-only backgrounds, no production deployment evidence. Max cumulative penalty is capped at 50% score reduction.
+As a result:
 
-### Scoring formula
+- no embedding cache is required
+- no precomputation step is needed
+- significantly lower memory usage
+- considerably faster execution
+- suitable for standard CPU-only systems
 
-```
-base_score        = weighted_sum(feature_vector)
-behavioral_score  = base_score × behavioral_multiplier
-final_score       = behavioral_score × (1 − penalty)
-```
-
----
-
-## Configuration
-
-All weights are in `config.py`:
-
-- `FEATURE_WEIGHTS` — weight of each feature in the base score
-- `BEHAVIORAL_WEIGHTS` — weight of each platform signal
-- `PENALTY_WEIGHTS` — weight of each penalty type
-- `EXP_IDEAL_MIN / MAX` — ideal experience range
-- `NOTICE_IDEAL_DAYS` — ideal notice period
+This makes the pipeline simpler to execute while still maintaining a multi-feature ranking approach.
 
 ---
 
-## Compute constraints
+# Notes
 
-| Constraint | Limit | This system |
-|---|---|---|
-| Runtime | ≤5 min | ~1–2 min with cache, ~4 min first run |
-| RAM | ≤16 GB | ~4–6 GB peak |
-| Compute | CPU only | ✅ no GPU used |
-| Network | Off | ✅ no external calls |
+This implementation was designed specifically for the Redrob Candidate Discovery challenge and focuses on producing a reproducible ranking pipeline that can be executed with a single command.
 
----
-
-## Example commands
-
-```bash
-# Full run with defaults
-python rank.py
-
-# Custom paths
-python rank.py \
-  --candidates /data/candidates.jsonl.gz \
-  --jd /data/job_description.md \
-  --out /data/output/my_submission.csv
-
-# Precompute then rank
-python precompute.py --candidates ./candidates.jsonl.gz
-python rank.py
-
-# Force re-embed (ignore cache)
-python precompute.py --force
-python rank.py
-```
+No external APIs or online services are required, making the solution fully self-contained and suitable for offline evaluation environments.
