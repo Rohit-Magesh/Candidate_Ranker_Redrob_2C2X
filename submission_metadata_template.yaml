@@ -1,0 +1,92 @@
+# Redrob Hackathon — Submission Metadata Template
+#
+# Copy this file to your repo root as `submission_metadata.yaml` and fill it in.
+# The fields here should match what you submit via the portal at upload time.
+# Stage 3 review uses this file to verify your portal metadata.
+
+# ============================================================================
+# Team identity
+# ============================================================================
+team_name: "2C2X"  # Used in leaderboard and announcements
+
+primary_contact:
+  name: "Kathiravan M"
+  email: "kathiravanvm@gmail.com"   # Used for all organizer communication
+  phone: "+91-9363302939"        # Used for top-50 / top-10 outreach
+
+team_members:
+  - name: "Kathiravan M"
+    email: "kathiravanvm@gmail.com"
+    role: "Team lead,AI Engineer"          # Optional, e.g. "Team Lead", "Backend", "Data"
+  - name: "Rohit magesh"
+    email: "personal.rohit001@gmail.com"
+    role: "Python developer,ML Engineer"
+  # Add more members as needed; solo participants list just one member
+
+# ============================================================================
+# Code and reproducibility
+# ============================================================================
+github_repo: "https://github.com/Rohit-Magesh/Candidate_Ranker_Redrob_2C2X"
+# Required. Must be reachable. Private repos OK if you can grant organizer
+# access at Stage 3 (the email to add will be communicated then).
+
+sandbox_link: "https://hub.docker.com/repository/docker/rohitmagesh/candidate-ranker/general"
+# Required. A working hosted environment where the ranker can be run on a small
+# candidate sample. See Section 10.5 of submission_spec.md for acceptable
+# platforms (HuggingFace Spaces, Streamlit Cloud, Replit, Colab, Docker, Binder).
+
+reproduce_command: "docker pull rohitmagesh/candidate-ranker:latest; if ($?) { docker run --rm -v "${PWD}/output:/workspace/output" rohitmagesh/candidate-ranker:latest }"
+# The single command that produces submission.csv from candidates.jsonl.
+# Should run end-to-end within 5 minutes on CPU with 16GB RAM and no network.
+
+# ============================================================================
+# Compute environment
+# ============================================================================
+compute:
+  platform: "Thinkpad E495"                    # Or: "AWS EC2 c5.4xlarge", "Local Linux box", etc.
+  cpu_cores: 8                                  # Number of CPU cores used
+  ram_gb: 32                                    # Available RAM in GB
+  python_version: "3.14"                      # python --version
+  os: "Windows 10"                              # Or "Ubuntu 22.04 LTS", etc.
+  uses_gpu_for_inference: false                 # Must be false — see compute constraints
+  has_network_during_ranking: false             # Must be false — no API calls during ranking
+  pre_computation_required: false               # true if you pre-compute embeddings or train models offline
+  pre_computation_time_minutes: 0               # Approximate, if applicable
+
+# ============================================================================
+# AI tools declaration
+# ============================================================================
+# Transparency only — declared use is NOT penalized. Be honest. Stage 5 interview
+# may verify these declarations against your code; declarations that contradict
+# your code or your interview are flagged.
+ai_tools_used:
+ -"claude code"
+ -"gemini"
+ -"ChatGPT"
+
+ai_usage_summary: |
+Leveraged a multi-LLM workflow: designed system architecture with Gemini, generated code using Claude, and streamlined debugging via ChatGPT.
+
+# ============================================================================
+# Approach summary (optional but recommended)
+# ============================================================================
+methodology_summary: |
+  Our solution ranks candidates using a multi-stage pipeline that combines semantic relevance, structured feature engineering, behavioral signals, and penalty-based filtering. Candidate profiles and the job description are parsed into normalized representations. 
+  Semantic similarity is computed using TF-IDF vectorization to estimate textual relevance between each candidate and the job description.
+  Additional features evaluate experience, skill overlap, job title relevance, production ML exposure, project quality, company relevance, education, career stability, 
+  and location fit. Behavioral signals such as recruiter response rate, profile completeness, GitHub activity, interview completion, and recent activity are combined 
+  into a bounded multiplier that rewards engaged candidates. Penalties are applied for keyword stuffing, inconsistent career history, inactive profiles, research-only 
+  backgrounds, excessive service-company experience, and lack of production deployment evidence. A weighted scoring function aggregates all signals into a final ranking 
+  score, after which candidates are sorted and the top 100 are selected. Scores are normalized into an intuitive confidence range, and an automated reasoning module 
+  generates concise explanations for each ranked candidate. The pipeline is deterministic, reproducible, CPU-efficient, and packaged as a Docker image for 
+  straightforward evaluation.
+
+# ============================================================================
+# Declarations
+# ============================================================================
+declarations:
+  read_submission_spec: true        # I have read submission_spec.md in full
+  code_is_original_work: true       # My code is my team's original work (using AI as a tool is fine)
+  no_collusion: true                # I have not coordinated my submission with other teams
+  honeypot_check_done: true        # OPTIONAL — set true if you explicitly checked for honeypots in your ranking
+  reproduction_tested: true         # I have tested that my reproduce_command runs end-to-end
